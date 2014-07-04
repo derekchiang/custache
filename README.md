@@ -1,7 +1,8 @@
 # custache
 
-Mustache templates for C.
+[Mustache](http://mustache.github.io/) templates for C.
 
 ## Status
 
 WIP.
+
