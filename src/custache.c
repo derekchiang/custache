@@ -36,57 +36,58 @@ cweb_template_b cweb_template_compile(char *tpl) {
     apr_pool_t *pool = bu_current_pool();
 
     size_t len = strlen(tpl);
-    const char *current_str = "";
 
-    apr_array_header_t *tokens = apr_array_make(pool, 0, sizeof(token_t));
-    
-    const char *first = tpl;
-    const char *last;
-    while (first < (tpl + len)) {
-        last = strstr(first, "{{");
-        if (!last) {
-            last = tpl + len;
+    custache_sm_t csm = {
+        .state = EXPECTING_TEXT,
+        .remaining = tpl,
+        .current_template = ^(context_handler_b context){
+            return "";
         }
-        token_t str_token = {
-            .type = TOKEN_STRING,
-            .as_string = apr_pstrmemdup(pool, first, last - first)
-        };
-        APR_ARRAY_PUSH(tokens, token_t) = str_token;
+    };
+    
+    while (csm.remaining < (tpl + len)) {
+        const char *pos;
+        cweb_template_b prev_tpl = Block_copy(csm.current_template);
 
-        if (last >= (tpl + len)) break;
+        switch (csm.state) {
+        case EXPECTING_TEXT:
+            pos = strstr(csm.remaining, "{{");
+            if (!pos) pos = tpl + len;
+            csm.current_template = ^(context_handler_b context) {
+                const char *prev_text = prev_tpl(context);
+                Block_release(prev_tpl);
+                return bu_format("%s%s",
+                                 prev_text,
+                                 apr_pstrmemdup(pool, csm.remaining, pos - csm.remaining));
+            };
+            csm.remaining = pos + 2;
+            csm.state = EXPECTING_TAG;
+            break;
+        case EXPECTING_TAG:
+            pos = strstr(csm.remaining, "}}");
+            if (!pos) pos = tpl + len;
+            csm.current_template = ^(context_handler_b context) {
+                const char *prev_text = prev_tpl(context);
+                Block_release(prev_tpl);
 
-        first = last + 2;
-        last = strstr(first, "}}");
-        token_t tag_token = {
-            .type = TOKEN_TAG,
-            .as_string = apr_pstrmemdup(pool, first, last - first)
-        };
-        first = last + 2;
-
-        APR_ARRAY_PUSH(tokens, token_t) = tag_token;
-    }
-
-    return Block_copy(^(context_handler_b context) {
-        const char *ret = "";
-
-        for (size_t i = 0; i < tokens->nelts; i++) {
-            token_t token = APR_ARRAY_IDX(tokens, i, token_t);
-            if (token.type == TOKEN_STRING) {
-                ret = apr_pstrcat(pool, ret, token.as_string, NULL);
-            } else if (token.type == TOKEN_TAG) {
-                mustache_tag_t tag = context(token.as_string);
+                const char *tag_key = apr_pstrmemdup(pool, csm.remaining, pos - csm.remaining);
+                mustache_tag_t tag = context(tag_key);
                 switch (tag.type) {
                 case MUSTACHE_TYPE_STRING:
-                    ret = apr_pstrcat(pool, ret, tag.as_string, NULL);
+                    return bu_format("%s%s", prev_text, tag.as_string);
                     break;
                 case MUSTACHE_TYPE_LONG:
-                    ret = apr_pstrcat(pool, ret, bu_format("%ld", tag.as_long), NULL);
+                    return bu_format("%s%ld", prev_text, tag.as_long);
                     break;
                 }
-            }
+                return csm.current_template(context);
+            };
+            csm.remaining = pos + 2;
+            csm.state = EXPECTING_TEXT;
+            break;
         }
+    }
 
-        return ret;
-    });
+    return Block_copy(csm.current_template);
 } 
 
