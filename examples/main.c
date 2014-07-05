@@ -13,7 +13,7 @@ int main(void) {
     bu_with_pool(^{
         _custache_run_tests();
 
-        char *template = "Hello, {{name}}.  You are {{age}} years old.";
+        char *template = "Hello, {{name}}.{{#show_age}}  You are {{age}} years old.{{/show_age}}";
         const char *err;
         cweb_template_b tpl = cweb_template_compile(template, &err);
 
@@ -25,6 +25,9 @@ int main(void) {
             } else if (strcmp(tag_key, "age") == 0) {
                 tag.type = MUSTACHE_TYPE_LONG;
                 tag.as_long = 20;
+            } else if (strcmp(tag_key, "show_age") == 0) {
+                tag.type = MUSTACHE_TYPE_LONG;
+                tag.as_long = 1;
             }
             return tag;
         }));
