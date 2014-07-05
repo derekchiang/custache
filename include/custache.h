@@ -12,7 +12,9 @@ typedef mustache_tag_t (^context_handler_b)(const char *tag);
 typedef char *(^cweb_template_b)(context_handler_b);
 
 // Compile a template
-extern cweb_template_b cweb_template_compile(char *tpl);
+extern cweb_template_b cweb_template_compile(const char *tpl, const char **err);
+
+extern void _custache_run_tests(void);
 
 typedef enum {
     MUSTACHE_TYPE_LONG,

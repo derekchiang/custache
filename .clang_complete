@@ -1,0 +1,5 @@
+-fblocks
+-I include/
+-L build/
+-Wl,-soname,libcustache.so
+-DLINUX -D_REENTRANT -D_GNU_SOURCE -g -O2 -pthread -I/usr/local/apr/include/apr-1  -L/usr/local/apr/lib -lapr-1 -lrt -lcrypt -lpthread -ldl

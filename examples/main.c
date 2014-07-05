@@ -11,8 +11,12 @@ int main(void) {
     apr_initialize();
     
     bu_with_pool(^{
+        _custache_run_tests();
+
         char *template = "Hello, {{name}}.  You are {{age}} years old.";
-        cweb_template_b tpl = cweb_template_compile(template);
+        const char *err;
+        cweb_template_b tpl = cweb_template_compile(template, &err);
+
         puts(tpl(^(const char *tag_key) {
             mustache_tag_t tag = { .type = MUSTACHE_TYPE_NONE };
             if (strcmp(tag_key, "name") == 0) {
