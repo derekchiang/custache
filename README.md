@@ -4,5 +4,5 @@
 
 ## Status
 
-WIP.
+WIP.  See [examples](/examples) for a sneak peak.
 
