@@ -154,7 +154,6 @@ static custache_sm_t transit_from_expecting_section(custache_sm_t csm) {
     const char *section;
     csm.remaining = extract_tag_key_and_section(csm.remaining, &tag_key, &section);
 
-
     cweb_template_b prev_tpl = csm.current_template;
     csm.current_template = Block_copy(^(context_handler_b context) {
         const char *err;
@@ -168,7 +167,7 @@ static custache_sm_t transit_from_expecting_section(custache_sm_t csm) {
             str = child_tpl(context);
         else if (tag.type == MUSTACHE_TYPE_CONTEXT) {
             context_handler_b combined_context = combine_contexts(tag.as_context, context);   
-            str = child_tpl(combine_contexts(tag.as_context, context));
+            str = child_tpl(combined_context);
             Block_release(combined_context);
         }
 
