@@ -22,13 +22,8 @@ typedef enum {
     MUSTACHE_TYPE_STRING,
     MUSTACHE_TYPE_CONTEXT,
 
-    MUSTACHE_TYPE_LONG_ARR,
-    MUSTACHE_TYPE_DOUBLE_ARR,
-    MUSTACHE_TYPE_STRING_ARR,
-    MUSTACHE_TYPE_CONTEXT_ARR,
-
+    MUSTACHE_TYPE_ARR,
     MUSTACHE_TYPE_FUNC,
-
     MUSTACHE_TYPE_NONE
 } mustache_tag_type_e;
 
@@ -41,11 +36,7 @@ struct mustache_tag {
         const char *as_string;
         context_handler_b as_context;
 
-        long *as_longs;
-        double *as_doubles;
-        const char **as_strings;
-        context_handler_b *as_contexts;
-
+        mustache_tag_t *as_arr;
         mustache_tag_b as_func;
     };
 };
