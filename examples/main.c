@@ -17,7 +17,7 @@ int main(void) {
 
         char *template = "Hello, {{name}}.{{#derek}}  You are {{age}} years old.{{/derek}}";
         const char *err;
-        cweb_template_b tpl = cweb_template_compile(template, &err);
+        custache_b tpl = custache_compile(template, &err);
 
         puts(tpl(^(const char *tag_key) {
             mustache_tag_t tag = { .type = MUSTACHE_TYPE_NONE };

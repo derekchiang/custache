@@ -9,10 +9,10 @@ typedef mustache_tag_t (^mustache_tag_b)(const char *text);
 typedef mustache_tag_t (^context_handler_b)(const char *tag);
 
 // A compiled template that can be called with a context and returns a rendered page
-typedef char *(^cweb_template_b)(context_handler_b);
+typedef char *(^custache_b)(context_handler_b);
 
 // Compile a template
-extern cweb_template_b cweb_template_compile(const char *tpl, const char **err);
+extern custache_b custache_compile(const char *tpl, const char **err);
 
 extern void _custache_run_tests(void);
 

@@ -22,7 +22,7 @@ typedef enum {
 typedef struct custache_sm {
     custache_sm_state_e state;
     const char *remaining;
-    cweb_template_b current_template;
+    custache_b current_template;
     const char *err;
 } custache_sm_t;
 
@@ -61,7 +61,7 @@ static custache_sm_t transit_from_expecting_text(custache_sm_t csm) {
         csm.state = EXPECTING_VAR;
     }
 
-    cweb_template_b prev_tpl = csm.current_template;
+    custache_b prev_tpl = csm.current_template;
     csm.current_template = Block_copy(^(context_handler_b context) {
         char *ret = bu_format("%s%s", prev_tpl(context),
                               apr_pstrmemdup(bu_current_pool(),
@@ -87,7 +87,7 @@ static custache_sm_t transit_from_expecting_var(custache_sm_t csm) {
 
     csm.state = EXPECTING_TEXT;
 
-    cweb_template_b prev_tpl = csm.current_template;
+    custache_b prev_tpl = csm.current_template;
     csm.current_template = Block_copy(^(context_handler_b context) {
         mustache_tag_t tag = context(tag_key);
         char *str;
@@ -147,17 +147,15 @@ static context_handler_b combine_contexts(context_handler_b ctx1, context_handle
     });
 }
 
-
-
 static custache_sm_t transit_from_expecting_section(custache_sm_t csm) {
     const char *tag_key;
     const char *section;
     csm.remaining = extract_tag_key_and_section(csm.remaining, &tag_key, &section);
 
-    cweb_template_b prev_tpl = csm.current_template;
+    custache_b prev_tpl = csm.current_template;
     csm.current_template = Block_copy(^(context_handler_b context) {
         const char *err;
-        cweb_template_b child_tpl = cweb_template_compile(section, &err);
+        custache_b child_tpl = custache_compile(section, &err);
         mustache_tag_t tag = context(tag_key);
         char *str = "";
 
@@ -181,7 +179,7 @@ static custache_sm_t transit_from_expecting_section(custache_sm_t csm) {
     return csm;
 }
 
-cweb_template_b cweb_template_compile(const char *tpl, const char **err) {
+custache_b custache_compile(const char *tpl, const char **err) {
     custache_sm_t csm = {
         .state = EXPECTING_TEXT,
         .remaining = tpl,
