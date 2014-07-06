@@ -5,6 +5,7 @@ LIB = custache
 
 SOURCES := $(realpath $(wildcard src/*.c))
 OBJECTS := $(patsubst src/%.c, build/%.o, $(wildcard src/*.c))
+EXAMPLES := main benchmark
 
 SHARED_LIBS := apr-1
 
@@ -21,7 +22,7 @@ lib: $(SOURCES)
 
 examples: lib
 	mkdir -p build
-	$(foreach program,main,\
+	$(foreach program,$(EXAMPLES),\
 	$(CC) -std=c11 -fblocks examples/$(program).c -o build/$(program) -I./include -L./build -l$(LIB) \
 	    $(LINK_FLAGS) -lBlocksRuntime &&) echo "finished building examples"
 

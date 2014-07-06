@@ -1,5 +1,6 @@
 #include "string.h"
 #include "stdio.h"
+#include "time.h"
 
 #include "Block.h"
 
@@ -60,17 +61,23 @@ int main(void) {
             people_tags[i].as_context = people[i];
         }
 
-        puts(tpl(^(const char *tag_key) {
-            mustache_tag_t tag = { .type = MUSTACHE_TYPE_NONE };
-            if (strcmp(tag_key, "people") == 0) {
-                tag.type = MUSTACHE_TYPE_ARR;
-                tag.arr_size = num_people;
-                tag.as_arr = people_tags;
-            }
-            return tag;
-        }));
+        time_t before = time(NULL);
+        size_t num_iters = 100000;
+        for (size_t i = 0; i < num_iters; i++) {
+            tpl(^(const char *tag_key) {
+                mustache_tag_t tag = { .type = MUSTACHE_TYPE_NONE };
+                if (strcmp(tag_key, "people") == 0) {
+                    tag.type = MUSTACHE_TYPE_ARR;
+                    tag.arr_size = num_people;
+                    tag.as_arr = people_tags;
+                }
+                return tag;
+            });
+        }
+        time_t after = time(NULL);
     });
 
     apr_terminate();
 }
+
 
