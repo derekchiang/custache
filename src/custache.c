@@ -101,6 +101,9 @@ static custache_sm_t transit_from_expecting_var(custache_sm_t csm) {
         case MUSTACHE_TYPE_STRING:
             str = bu_format("%s", tag.as_string);  // we want to make a copy of the string
             break;
+        case MUSTACHE_TYPE_CALLABLE:
+            str = tag.as_callable();
+            break;
         default:
             return (char *) NULL;  // TODO: better error reporting
         }
@@ -171,13 +174,13 @@ static const char *render_section(context_handler_b context,
         context_handler_b child_context = tag.as_context;
         context_handler_b combined_context = combine_contexts(child_context, context);
         return section_tpl(combined_context);
-    case MUSTACHE_TYPE_FUNC:;
+    case MUSTACHE_TYPE_DECORATOR:;
         mustache_render_b render_func = Block_copy(^(const char *text) {
             const char *err;
             custache_b tpl = custache_compile(text, &err);
             return tpl(context);
         });
-        return tag.as_func(section_text, render_func);
+        return tag.as_decorator(section_text, render_func);
     case MUSTACHE_TYPE_ARR:;
         const char *ret = "";
         for (size_t i = 0; i < tag.arr_size; i++) {
@@ -185,7 +188,7 @@ static const char *render_section(context_handler_b context,
                               render_section(context, section_tpl, section_text, tag.as_arr[i]), NULL);
         } 
         return ret;
-    case MUSTACHE_TYPE_NONE:
+    default:  // NONE or CALLABLE   TODO: handle callable better
         return "";
     }
 }

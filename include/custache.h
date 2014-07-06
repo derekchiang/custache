@@ -6,7 +6,8 @@ typedef struct mustache_tag mustache_tag_t;
 
 typedef char *(^mustache_render_b)(const char *text);
 
-typedef char *(^mustache_func_b)(const char *text, mustache_render_b);
+typedef char *(^mustache_callable_b)();
+typedef char *(^mustache_decorator_b)(const char *text, mustache_render_b);
 
 typedef mustache_tag_t (^context_handler_b)(const char *tag);
 
@@ -25,7 +26,8 @@ typedef enum {
     MUSTACHE_TYPE_CONTEXT,
 
     MUSTACHE_TYPE_ARR,
-    MUSTACHE_TYPE_FUNC,
+    MUSTACHE_TYPE_CALLABLE,
+    MUSTACHE_TYPE_DECORATOR,
     MUSTACHE_TYPE_NONE
 } mustache_tag_type_e;
 
@@ -39,7 +41,8 @@ struct mustache_tag {
         context_handler_b as_context;
 
         mustache_tag_t *as_arr;
-        mustache_func_b as_func;
+        mustache_callable_b as_callable;
+        mustache_decorator_b as_decorator;
     };
 };
 

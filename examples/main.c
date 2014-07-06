@@ -1,5 +1,6 @@
 #include "string.h"
-#include "stdio.h"
+#include "stdlib.h"
+#include "time.h"
 
 #include "Block.h"
 
@@ -11,11 +12,12 @@
 
 int main(void) {
     apr_initialize();
+    srand(time(NULL));
     
     bu_with_pool(^{
         _custache_run_tests();
 
-        char *template = "{{#people}}{{#newline}}Hello, {{name}}.  You are {{age}} years old.{{/newline}}{{/people}}";
+        char *template = "{{#people}}{{#newline}}Hello, {{name}}.  You are {{age}} years old.  Your lucky number is {{lucky_number}}.{{/newline}}{{/people}}";
         const char *err;
         custache_b tpl = custache_compile(template, &err);
 
@@ -68,9 +70,15 @@ int main(void) {
                 tag.as_arr = people_tags;
             }
             if (strcmp(tag_key, "newline") == 0) {
-                tag.type = MUSTACHE_TYPE_FUNC;
-                tag.as_func = ^(const char *text, mustache_render_b render) {
+                tag.type = MUSTACHE_TYPE_DECORATOR;
+                tag.as_decorator = ^(const char *text, mustache_render_b render) {
                     return bu_format("%s\n", render(text));
+                };
+            }
+            if (strcmp(tag_key, "lucky_number") == 0) {
+                tag.type = MUSTACHE_TYPE_CALLABLE;
+                tag.as_callable = ^() {
+                    return bu_format("%d", rand() % 100);
                 };
             }
             return tag;
