@@ -126,7 +126,7 @@ static const char *extract_tag_key_and_section(const char *src,
     const char *end_tag;
     while (true) {
         pos = extract_tag_key(pos, &end_tag);
-        if (end_tag[0] == '/' || strcmp(open_tag, end_tag + 1) == 0) {
+        if (end_tag[0] == '/' && strcmp(open_tag, end_tag + 1) == 0) {
             *tag_key = open_tag;
             const char *section_end = pos - strlen(bu_format("{{/%s}}", open_tag));
             *section = apr_pstrmemdup(bu_current_pool(), section_start, section_end - section_start);
@@ -159,8 +159,8 @@ static bool tag_is_truthy(mustache_tag_t tag) {
 
 static const char *render_section(context_handler_b context,
                                   custache_b section_tpl,
+                                  const char *section_text,
                                   mustache_tag_t tag) {
-    const char *ret;
     switch (tag.type) {
     case MUSTACHE_TYPE_LONG:
     case MUSTACHE_TYPE_DOUBLE:
@@ -170,31 +170,38 @@ static const char *render_section(context_handler_b context,
     case MUSTACHE_TYPE_CONTEXT:;
         context_handler_b child_context = tag.as_context;
         context_handler_b combined_context = combine_contexts(child_context, context);
-        ret = section_tpl(combined_context);
-        return ret;
+        return section_tpl(combined_context);
+    case MUSTACHE_TYPE_FUNC:;
+        mustache_render_b render_func = Block_copy(^(const char *text) {
+            const char *err;
+            custache_b tpl = custache_compile(text, &err);
+            return tpl(context);
+        });
+        return tag.as_func(section_text, render_func);
     case MUSTACHE_TYPE_ARR:;
-        ret = "";
+        const char *ret = "";
         for (size_t i = 0; i < tag.arr_size; i++) {
             ret = apr_pstrcat(bu_current_pool(), ret,
-                              render_section(context, section_tpl, tag.as_arr[i]), NULL);
+                              render_section(context, section_tpl, section_text, tag.as_arr[i]), NULL);
         } 
         return ret;
+    case MUSTACHE_TYPE_NONE:
+        return "";
     }
-    return "";
 }
 
 static custache_sm_t transit_from_expecting_section(custache_sm_t csm) {
     const char *tag_key;
-    const char *section;
-    csm.remaining = extract_tag_key_and_section(csm.remaining, &tag_key, &section);
+    const char *section_text;
+    csm.remaining = extract_tag_key_and_section(csm.remaining, &tag_key, &section_text);
 
     custache_b prev_tpl = csm.current_template;
     const char *err;
-    custache_b section_tpl = custache_compile(section, &err);
+    custache_b section_tpl = custache_compile(section_text, &err);
     csm.current_template = Block_copy(^(context_handler_b context) {
         char *ret = apr_pstrcat(bu_current_pool(),
                     prev_tpl(context),
-                    render_section(context, section_tpl, context(tag_key)), NULL);
+                    render_section(context, section_tpl, section_text, context(tag_key)), NULL);
         return ret;
     });
     

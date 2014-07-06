@@ -4,7 +4,9 @@
 
 typedef struct mustache_tag mustache_tag_t;
 
-typedef mustache_tag_t (^mustache_tag_b)(const char *text);
+typedef char *(^mustache_render_b)(const char *text);
+
+typedef char *(^mustache_func_b)(const char *text, mustache_render_b);
 
 typedef mustache_tag_t (^context_handler_b)(const char *tag);
 
@@ -37,7 +39,7 @@ struct mustache_tag {
         context_handler_b as_context;
 
         mustache_tag_t *as_arr;
-        mustache_tag_b as_func;
+        mustache_func_b as_func;
     };
 };
 

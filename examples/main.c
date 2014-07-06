@@ -15,7 +15,7 @@ int main(void) {
     bu_with_pool(^{
         _custache_run_tests();
 
-        char *template = "{{#people}}Hello, {{name}}.  You are {{age}} years old.\n{{/people}}";
+        char *template = "{{#people}}{{#newline}}Hello, {{name}}.  You are {{age}} years old.{{/newline}}{{/people}}";
         const char *err;
         custache_b tpl = custache_compile(template, &err);
 
@@ -66,6 +66,12 @@ int main(void) {
                 tag.type = MUSTACHE_TYPE_ARR;
                 tag.arr_size = num_people;
                 tag.as_arr = people_tags;
+            }
+            if (strcmp(tag_key, "newline") == 0) {
+                tag.type = MUSTACHE_TYPE_FUNC;
+                tag.as_func = ^(const char *text, mustache_render_b render) {
+                    return bu_format("%s\n", render(text));
+                };
             }
             return tag;
         }));

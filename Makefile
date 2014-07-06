@@ -5,7 +5,7 @@ LIB = custache
 
 SOURCES := $(realpath $(wildcard src/*.c))
 OBJECTS := $(patsubst src/%.c, build/%.o, $(wildcard src/*.c))
-EXAMPLES := main benchmark
+EXAMPLES := main benchmark function
 
 SHARED_LIBS := apr-1
 
