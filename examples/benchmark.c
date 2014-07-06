@@ -62,7 +62,7 @@ int main(void) {
         }
 
         time_t before = time(NULL);
-        size_t num_iters = 100000;
+        size_t num_iters = 1000000;
         for (size_t i = 0; i < num_iters; i++) {
             tpl(^(const char *tag_key) {
                 mustache_tag_t tag = { .type = MUSTACHE_TYPE_NONE };
