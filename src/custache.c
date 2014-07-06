@@ -28,13 +28,14 @@ typedef struct custache_sm {
 
 // A naive algorithm that walks through src and returns the position of the first occurrence of any
 // of the given patterns
-static const char *find_one_of_these(const char *src, const char **which_one, int count, ...) {
+static const char *find_one_of_these(const char *src, const char **which_one, ...) {
     va_list patterns;
     size_t pos = 0;
     while (src[pos] != '\0') {
-        va_start(patterns, count);
-        for (int i = 0; i < count; i++) {
+        va_start(patterns, which_one);
+        while (true) {
             const char *pat = va_arg(patterns, const char *);
+            if (!pat) break;
             if (strncmp(src + pos, pat, strlen(pat)) == 0) {
                 *which_one = pat;
                 return src + pos;
@@ -48,7 +49,7 @@ static const char *find_one_of_these(const char *src, const char **which_one, in
 
 static custache_sm_t transit_from_expecting_text(custache_sm_t csm) {
     const char *pat;
-    const char *text_end = find_one_of_these(csm.remaining, &pat,  2, "{{#", "{{");
+    const char *text_end = find_one_of_these(csm.remaining, &pat, "{{#", "{{", NULL);
 
     // The order in which we compare these strings is important;
     // for instance, if it were {{# and we compared it was {{ first, we'd think it's just {{
@@ -239,7 +240,7 @@ custache_b custache_compile(const char *tpl, const char **err) {
 void _custache_run_tests(void) {
     const char *src = "Hello, {{name}}";
     const char *which;
-    const char *pos = find_one_of_these(src, &which, 2, "<<", "{{");
+    const char *pos = find_one_of_these(src, &which, "<<", "{{", NULL);
     assert(strcmp(which, "{{") == 0);
     assert(pos - src == 7);
 }
