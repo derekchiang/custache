@@ -18,7 +18,7 @@ int main(void) {
 
         char *template = "{{#people}}Hello, {{name}}.  You are {{age}} years old.\n{{/people}}";
         const char *err;
-        custache_b tpl = custache_compile(template, &err);
+        custache_t tpl = custache_compile(template, &err);
 
         #define num_people 3
         context_handler_b people[num_people] = {
@@ -64,7 +64,7 @@ int main(void) {
         time_t before = time(NULL);
         size_t num_iters = 1000000;
         for (size_t i = 0; i < num_iters; i++) {
-            tpl(^(const char *tag_key) {
+            custache_render(tpl, ^(const char *tag_key) {
                 mustache_tag_t tag = { .type = MUSTACHE_TYPE_NONE };
                 if (strcmp(tag_key, "people") == 0) {
                     tag.type = MUSTACHE_TYPE_ARR;

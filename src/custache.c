@@ -26,6 +26,14 @@ typedef struct custache_sm {
     const char *err;
 } custache_sm_t;
 
+struct custache {
+    apr_array_header_t *blocks;
+};
+
+static inline void custache_add_one_block(custache_t cus, custache_b block) {
+    APR_ARRAY_PUSH(cus->blocks, custache_b) = block;
+}
+
 // A naive algorithm that walks through src and returns the position of the first occurrence of any
 // of the given patterns
 static const char *find_one_of_these(const char *src, const char **which_one, ...) {
@@ -47,7 +55,7 @@ static const char *find_one_of_these(const char *src, const char **which_one, ..
     return NULL;
 }
 
-static custache_sm_t transit_from_expecting_text(custache_sm_t csm) {
+static custache_sm_t transit_from_expecting_text(custache_sm_t csm, custache_t cus) {
     const char *pat;
     const char *text_end = find_one_of_these(csm.remaining, &pat, "{{#", "{{", NULL);
 
@@ -71,6 +79,8 @@ static custache_sm_t transit_from_expecting_text(custache_sm_t csm) {
     });
 
     csm.remaining = text_end;
+
+    custache_add_one_block(cus, csm.current_template);
     return csm;
 }
 
@@ -81,7 +91,7 @@ static const char *extract_tag_key(const char *src, const char **tag_key) {
     return tag_end_pos + 2;
 }
 
-static custache_sm_t transit_from_expecting_var(custache_sm_t csm) {
+static custache_sm_t transit_from_expecting_var(custache_sm_t csm, custache_t cus) {
     const char *tag_key;
     csm.remaining = extract_tag_key(csm.remaining, &tag_key);
 
@@ -112,6 +122,8 @@ static custache_sm_t transit_from_expecting_var(custache_sm_t csm) {
     });
     
     if (csm.remaining[0] == '\0') csm.state = DONE;
+
+    custache_add_one_block(cus, csm.current_template);
     return csm;
 }
 
@@ -161,28 +173,33 @@ static bool tag_is_truthy(mustache_tag_t tag) {
 }
 
 static const char *render_section(context_handler_b context,
-                                  custache_b section_tpl,
+                                  custache_t section_tpl,
                                   const char *section_text,
                                   mustache_tag_t tag) {
     switch (tag.type) {
+        const char *ret;
     case MUSTACHE_TYPE_LONG:
     case MUSTACHE_TYPE_DOUBLE:
     case MUSTACHE_TYPE_STRING:
-        if (tag_is_truthy(tag)) return section_tpl(context);
+        if (tag_is_truthy(tag)) return custache_render(section_tpl, context);
         else return "";
     case MUSTACHE_TYPE_CONTEXT:;
         context_handler_b child_context = tag.as_context;
         context_handler_b combined_context = combine_contexts(child_context, context);
-        return section_tpl(combined_context);
+        ret = custache_render(section_tpl, combined_context);
+        Block_release(combined_context);
+        return ret;
     case MUSTACHE_TYPE_DECORATOR:;
-        mustache_render_b render_func = Block_copy(^(const char *text) {
+        mustache_render_b render_func = ^(const char *text) {
             const char *err;
-            custache_b tpl = custache_compile(text, &err);
-            return tpl(context);
-        });
+            custache_t cus = custache_compile(text, &err);
+            char *ret = custache_render(cus, context);
+            custache_release(cus);
+            return ret;
+        };
         return tag.as_decorator(section_text, render_func);
-    case MUSTACHE_TYPE_ARR:;
-        const char *ret = "";
+    case MUSTACHE_TYPE_ARR:
+        ret = "";
         for (size_t i = 0; i < tag.arr_size; i++) {
             ret = apr_pstrcat(bu_current_pool(), ret,
                               render_section(context, section_tpl, section_text, tag.as_arr[i]), NULL);
@@ -193,14 +210,14 @@ static const char *render_section(context_handler_b context,
     }
 }
 
-static custache_sm_t transit_from_expecting_section(custache_sm_t csm) {
+static custache_sm_t transit_from_expecting_section(custache_sm_t csm, custache_t cus) {
     const char *tag_key;
     const char *section_text;
     csm.remaining = extract_tag_key_and_section(csm.remaining, &tag_key, &section_text);
 
     custache_b prev_tpl = csm.current_template;
     const char *err;
-    custache_b section_tpl = custache_compile(section_text, &err);
+    custache_t section_tpl = custache_compile(section_text, &err);
     csm.current_template = Block_copy(^(context_handler_b context) {
         char *ret = apr_pstrcat(bu_current_pool(),
                     prev_tpl(context),
@@ -210,10 +227,12 @@ static custache_sm_t transit_from_expecting_section(custache_sm_t csm) {
     
     csm.state = EXPECTING_TEXT;
 
+    custache_add_one_block(cus, csm.current_template);
+    apr_array_cat(cus->blocks, section_tpl->blocks);
     return csm;
 }
 
-custache_b custache_compile(const char *tpl, const char **err) {
+custache_t custache_compile(const char *tpl, const char **err) {
     custache_sm_t csm = {
         .state = EXPECTING_TEXT,
         .remaining = tpl,
@@ -223,28 +242,42 @@ custache_b custache_compile(const char *tpl, const char **err) {
         .err = NULL
     };
 
+    custache_t cus = bu_alloc(sizeof(struct custache));
+    cus->blocks = apr_array_make(bu_current_pool(), 0, sizeof(custache_b));
+
+    custache_add_one_block(cus, csm.current_template);
+
     size_t len = strlen(tpl);
     while (csm.state != DONE) {
         switch (csm.state) {
         case EXPECTING_TEXT:
-            csm = transit_from_expecting_text(csm);
+            csm = transit_from_expecting_text(csm, cus);
             break;
         case EXPECTING_VAR:
-            csm = transit_from_expecting_var(csm);
+            csm = transit_from_expecting_var(csm, cus);
             break;
         case EXPECTING_SECTION:
-            csm = transit_from_expecting_section(csm);
+            csm = transit_from_expecting_section(csm, cus);
             break;
         case ERROR:
             *err = csm.err;
-            return NULL;
+            break;  // TODO: better error handling
         case DONE:
             break;
         }
     }
 
+    return cus;
+}
 
-    return Block_copy(csm.current_template);
+char *custache_render(custache_t cus, context_handler_b context) {
+    return APR_ARRAY_IDX(cus->blocks, cus->blocks->nelts - 1, custache_b)(context);
+}
+
+void custache_release(custache_t cus) {
+    for (size_t i = 0; i < cus->blocks->nelts; i++) {
+        Block_release(APR_ARRAY_IDX(cus->blocks, i, custache_b));
+    }
 }
 
 void _custache_run_tests(void) {

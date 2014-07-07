@@ -14,10 +14,19 @@ typedef mustache_tag_t (^context_handler_b)(const char *tag);
 // A compiled template that can be called with a context and returns a rendered page
 typedef char *(^custache_b)(context_handler_b);
 
+typedef struct custache *custache_t;
+
 // Compile a template
-extern custache_b custache_compile(const char *tpl, const char **err);
+extern custache_t custache_compile(const char *tpl, const char **err);
+
+// Render a template with a context
+extern char *custache_render(custache_t, context_handler_b);
+
+// Release all internal memory used by the template.  The template cannot be used after this call.
+extern void custache_release(custache_t);
 
 extern void _custache_run_tests(void);
+
 
 typedef enum {
     MUSTACHE_TYPE_LONG,
