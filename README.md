@@ -2,14 +2,17 @@
 
 [Mustache](http://mustache.github.io/) templates for C.
 
-## Installation
+## Build / Install
 
-```bash
-make
-sudo make install
-```
+To build:
 
-Examples will be built under `build/bin/`.
+    make
+
+The examples will be put under `build/bin/`.
+
+To install:
+
+    sudo make install
 
 ## Benchmark
 
