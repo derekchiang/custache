@@ -4,10 +4,9 @@
 
 #include "Block.h"
 
+#include "apr_pools.h"
 #include "apr_strings.h"
 #include "apr_tables.h"
-
-#include "block_utils.h"
 
 #include "custache.h"
 
@@ -27,6 +26,7 @@ typedef struct custache_sm {
 } custache_sm_t;
 
 struct custache {
+    apr_pool_t *pool;
     apr_array_header_t *blocks;
 };
 
@@ -72,9 +72,9 @@ static custache_sm_t transit_from_expecting_text(custache_sm_t csm, custache_t c
 
     custache_b prev_tpl = csm.current_template;
     csm.current_template = Block_copy(^(context_handler_b context) {
-        char *ret = bu_format("%s%s", prev_tpl(context),
-                              apr_pstrmemdup(bu_current_pool(),
-                                             csm.remaining, text_end - csm.remaining));
+        char *ret = apr_psprintf(cus->pool, "%s%s", prev_tpl(context),
+                                 apr_pstrmemdup(cus->pool,
+                                                csm.remaining, text_end - csm.remaining));
         return ret;
     });
 
@@ -84,16 +84,16 @@ static custache_sm_t transit_from_expecting_text(custache_sm_t csm, custache_t c
     return csm;
 }
 
-static const char *extract_tag_key(const char *src, const char **tag_key) {
+static const char *extract_tag_key(custache_t cus, const char *src, const char **tag_key) {
     const char *tag_start_pos = strstr(src, "{{") + 2;
     const char *tag_end_pos = strstr(src, "}}");
-    *tag_key = apr_pstrmemdup(bu_current_pool(), tag_start_pos, tag_end_pos - tag_start_pos);
+    *tag_key = apr_pstrmemdup(cus->pool, tag_start_pos, tag_end_pos - tag_start_pos);
     return tag_end_pos + 2;
 }
 
 static custache_sm_t transit_from_expecting_var(custache_sm_t csm, custache_t cus) {
     const char *tag_key;
-    csm.remaining = extract_tag_key(csm.remaining, &tag_key);
+    csm.remaining = extract_tag_key(cus, csm.remaining, &tag_key);
 
     csm.state = EXPECTING_TEXT;
 
@@ -103,13 +103,14 @@ static custache_sm_t transit_from_expecting_var(custache_sm_t csm, custache_t cu
         char *str;
         switch (tag.type) {
         case MUSTACHE_TYPE_LONG:
-            str = bu_format("%lu", tag.as_long);
+            str = apr_psprintf(cus->pool, "%lu", tag.as_long);
             break;
         case MUSTACHE_TYPE_DOUBLE:
-            str = bu_format("%f", tag.as_double);
+            str = apr_psprintf(cus->pool, "%f", tag.as_double);
             break;
         case MUSTACHE_TYPE_STRING:
-            str = bu_format("%s", tag.as_string);  // we want to make a copy of the string
+            // we want to make a copy of the string
+            str = apr_psprintf(cus->pool, "%s", tag.as_string);
             break;
         case MUSTACHE_TYPE_CALLABLE:
             str = tag.as_callable();
@@ -117,7 +118,7 @@ static custache_sm_t transit_from_expecting_var(custache_sm_t csm, custache_t cu
         default:
             return (char *) NULL;  // TODO: better error reporting
         }
-        char *ret = bu_format("%s%s", prev_tpl(context), str);
+        char *ret = apr_psprintf(cus->pool, "%s%s", prev_tpl(context), str);
         return ret;
     });
     
@@ -127,12 +128,13 @@ static custache_sm_t transit_from_expecting_var(custache_sm_t csm, custache_t cu
     return csm;
 }
 
-static const char *extract_tag_key_and_section(const char *src,
+static const char *extract_tag_key_and_section(custache_t cus,
+                                               const char *src,
                                                const char **tag_key,
                                                const char **section) {
     const char *pos;
     const char *open_tag;
-    pos = extract_tag_key(src, &open_tag);
+    pos = extract_tag_key(cus, src, &open_tag);
     const char *section_start = pos;
 
     assert(open_tag[0] == '#');
@@ -140,11 +142,11 @@ static const char *extract_tag_key_and_section(const char *src,
     
     const char *end_tag;
     while (true) {
-        pos = extract_tag_key(pos, &end_tag);
+        pos = extract_tag_key(cus, pos, &end_tag);
         if (end_tag[0] == '/' && strcmp(open_tag, end_tag + 1) == 0) {
             *tag_key = open_tag;
-            const char *section_end = pos - strlen(bu_format("{{/%s}}", open_tag));
-            *section = apr_pstrmemdup(bu_current_pool(), section_start, section_end - section_start);
+            const char *section_end = pos - strlen(apr_psprintf(cus->pool, "{{/%s}}", open_tag));
+            *section = apr_pstrmemdup(cus->pool, section_start, section_end - section_start);
             return pos;
         }
     }
@@ -201,7 +203,7 @@ static const char *render_section(context_handler_b context,
     case MUSTACHE_TYPE_ARR:
         ret = "";
         for (size_t i = 0; i < tag.arr_size; i++) {
-            ret = apr_pstrcat(bu_current_pool(), ret,
+            ret = apr_pstrcat(section_tpl->pool, ret,
                               render_section(context, section_tpl, section_text, tag.as_arr[i]), NULL);
         } 
         return ret;
@@ -213,13 +215,13 @@ static const char *render_section(context_handler_b context,
 static custache_sm_t transit_from_expecting_section(custache_sm_t csm, custache_t cus) {
     const char *tag_key;
     const char *section_text;
-    csm.remaining = extract_tag_key_and_section(csm.remaining, &tag_key, &section_text);
+    csm.remaining = extract_tag_key_and_section(cus, csm.remaining, &tag_key, &section_text);
 
     custache_b prev_tpl = csm.current_template;
     const char *err;
     custache_t section_tpl = custache_compile(section_text, &err);
     csm.current_template = Block_copy(^(context_handler_b context) {
-        char *ret = apr_pstrcat(bu_current_pool(),
+        char *ret = apr_pstrcat(cus->pool,
                     prev_tpl(context),
                     render_section(context, section_tpl, section_text, context(tag_key)), NULL);
         return ret;
@@ -233,6 +235,8 @@ static custache_sm_t transit_from_expecting_section(custache_sm_t csm, custache_
 }
 
 custache_t custache_compile(const char *tpl, const char **err) {
+    apr_initialize();
+
     custache_sm_t csm = {
         .state = EXPECTING_TEXT,
         .remaining = tpl,
@@ -242,8 +246,15 @@ custache_t custache_compile(const char *tpl, const char **err) {
         .err = NULL
     };
 
-    custache_t cus = bu_alloc(sizeof(struct custache));
-    cus->blocks = apr_array_make(bu_current_pool(), 0, sizeof(custache_b));
+    apr_pool_t *pool;
+    apr_status_t status = apr_pool_create(&pool, NULL);
+    if (status != APR_SUCCESS) {
+        *err = "apr was not able to allocate memory pool";
+        return NULL;
+    }
+    custache_t cus = apr_palloc(pool, sizeof(struct custache));
+    cus->pool = pool;
+    cus->blocks = apr_array_make(cus->pool, 0, sizeof(custache_b));
 
     custache_add_one_block(cus, csm.current_template);
 
@@ -278,6 +289,8 @@ void custache_release(custache_t cus) {
     for (size_t i = 0; i < cus->blocks->nelts; i++) {
         Block_release(APR_ARRAY_IDX(cus->blocks, i, custache_b));
     }
+    apr_pool_destroy(cus->pool);
+    apr_terminate();
 }
 
 void _custache_run_tests(void) {

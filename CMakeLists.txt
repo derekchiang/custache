@@ -17,7 +17,7 @@ pkg_check_modules(APR apr-1)
 
 link_directories(${LINK_DIRECTORIES} ${APR_LIBRARY_DIRS})
 include_directories(${INCLUDE_DIRECTORIES} ${APR_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/src)
-link_libraries(${LINK_LIBRARIES} ${APR_STATIC_LIBRARIES} block-utils)
+link_libraries(${LINK_LIBRARIES} ${APR_STATIC_LIBRARIES})
 
 file(GLOB HEADERS "include/*.h")
 install(FILES ${HEADERS} DESTINATION include)
