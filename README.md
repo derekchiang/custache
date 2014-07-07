@@ -2,6 +2,15 @@
 
 [Mustache](http://mustache.github.io/) templates for C.
 
+## Dependencies
+
+1. [Apache Portable Runtime](https://apr.apache.org/)
+2. [clang](http://clang.llvm.org/) with [blocks extension](http://en.wikipedia.org/wiki/Blocks_%28C_language_extension%29)
+
+On Ubuntu, clang and the blocks extension can be installed with:
+
+    sudo apt-get install clang libblocksruntime-dev
+
 ## Build / Install
 
 To build:
