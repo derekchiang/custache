@@ -2,7 +2,7 @@ CC = clang
 
 default:
 	mkdir -p build
-	cd build && CC=$(CC) cmake .. && make
+	cd build && CC="$(CC)" cmake .. && make
 
 install:
 	cd build && make install
