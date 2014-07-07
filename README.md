@@ -7,9 +7,9 @@
 1. [Apache Portable Runtime](https://apr.apache.org/)
 2. [clang](http://clang.llvm.org/) with [blocks extension](http://en.wikipedia.org/wiki/Blocks_%28C_language_extension%29)
 
-On Ubuntu, clang and the blocks extension can be installed with:
+On Ubuntu, the dependencies can all be installed via `apt-get`:
 
-    sudo apt-get install clang libblocksruntime-dev
+    sudo apt-get install libapr1-dev clang libblocksruntime-dev
 
 ## Build / Install
 
