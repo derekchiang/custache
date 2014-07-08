@@ -30,6 +30,7 @@ struct custache {
     apr_array_header_t *blocks;
 };
 
+// Register one block so we can free it later
 static inline void custache_add_one_block(custache_t cus, custache_b block) {
     APR_ARRAY_PUSH(cus->blocks, custache_b) = block;
 }
@@ -38,21 +39,17 @@ static inline void custache_add_one_block(custache_t cus, custache_b block) {
 // of the given patterns
 static const char *find_one_of_these(const char *src, const char **which_one, ...) {
     va_list patterns;
-    size_t pos = 0;
-    while (src[pos] != '\0') {
-        va_start(patterns, which_one);
-        while (true) {
-            const char *pat = va_arg(patterns, const char *);
-            if (!pat) break;
-            if (strncmp(src + pos, pat, strlen(pat)) == 0) {
-                *which_one = pat;
-                return src + pos;
-            }
+    va_start(patterns, which_one);
+    const char *pat;
+    const char *pos = NULL;
+    while ((pat = va_arg(patterns, const char *))) {
+        const char *p = strstr(src, pat);
+        if (!pos || p < pos) {
+            pos = p;
+            *which_one = pat;
         }
-        va_end(patterns);
-        pos++;
     }
-    return NULL;
+    return pos;
 }
 
 static custache_sm_t transit_from_expecting_text(custache_sm_t csm, custache_t cus) {
