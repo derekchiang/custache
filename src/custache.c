@@ -64,9 +64,9 @@ static custache_sm_t transit_from_expecting_text(custache_sm_t csm, custache_t c
     if (!text_end) {
         text_end = csm.remaining + strlen(csm.remaining);
         csm.state = DONE;
-    } else if (strcmp(pat, "{{#") == 0) {
+    } else if (!strcmp(pat, "{{#")) {
         csm.state = EXPECTING_SECTION;
-    } else if (strcmp(pat, "{{") == 0) {
+    } else if (!strcmp(pat, "{{")) {
         csm.state = EXPECTING_VAR;
     }
 
@@ -143,7 +143,7 @@ static const char *extract_tag_key_and_section(custache_t cus,
     const char *end_tag;
     while (true) {
         pos = extract_tag_key(cus, pos, &end_tag);
-        if (end_tag[0] == '/' && strcmp(open_tag, end_tag + 1) == 0) {
+        if (end_tag[0] == '/' && !strcmp(open_tag, end_tag + 1)) {
             *tag_key = open_tag;
             const char *section_end = pos - strlen(apr_psprintf(cus->pool, "{{/%s}}", open_tag));
             *section = apr_pstrmemdup(cus->pool, section_start, section_end - section_start);
@@ -297,7 +297,7 @@ void _custache_run_tests(void) {
     const char *src = "Hello, {{name}}";
     const char *which;
     const char *pos = find_one_of_these(src, &which, "<<", "{{", NULL);
-    assert(strcmp(which, "{{") == 0);
+    assert(!strcmp(which, "{{"));
     assert(pos - src == 7);
 }
 
