@@ -10,7 +10,7 @@ SET(BLOCKS_LINKER_FLAGS "-lBlocksRuntime")
 
 add_definitions(${BLOCKS_CC_FLAGS})
 SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${BLOCKS_LINKER_FLAGS}")
-add_definitions(${BLOCKS_LINKER_FLAGS})
+add_definitions(-DE4C_THREADSAFE)
 
 find_package(PkgConfig)
 pkg_check_modules(APR apr-1)
