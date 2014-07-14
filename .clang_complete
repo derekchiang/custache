@@ -1,6 +1,0 @@
--I/usr/local/apr/include/apr-1
--I/home/derek/code/custache/include
--I/home/derek/code/custache/src
--Dcustache_EXPORTS
--Wl,-soname,libcustache.so
--Wl,-rpath,/usr/local/apr/lib:

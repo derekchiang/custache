@@ -31,3 +31,4 @@ session.vim
 
 build/
 
+*.pyc

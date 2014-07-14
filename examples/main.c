@@ -3,6 +3,8 @@
 #include "stdio.h"
 #include "time.h"
 
+#include "Block.h"
+
 #include "apr_general.h"
 #include "apr_pools.h"
 #include "apr_strings.h"
@@ -70,18 +72,18 @@ int main(void) {
         }
         if (strcmp(tag_key, "newline") == 0) {
             tag.type = MUSTACHE_TYPE_DECORATOR;
-            tag.as_decorator = ^(const char *text, mustache_render_b render) {
+            tag.as_decorator = Block_copy(^(const char *text, mustache_render_b render) {
                 return apr_psprintf(pool, "%s\n", render(text));
-            };
+            });
         }
         if (strcmp(tag_key, "lucky_number") == 0) {
             tag.type = MUSTACHE_TYPE_CALLABLE;
-            tag.as_callable = ^() {
+            tag.as_callable = Block_copy(^() {
                 return apr_psprintf(pool, "%d", rand() % 100);
-            };
+            });
         }
         return tag;
-    }));
+    }, &err));
 
     apr_pool_destroy(pool);
     apr_terminate();

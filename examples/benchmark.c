@@ -53,6 +53,7 @@ int main(void) {
 
     size_t num_iters = 1000000;
     for (size_t i = 0; i < num_iters; i++) {
+        const char *err;
         custache_render(tpl, ^(const char *tag_key) {
             mustache_tag_t tag = { .type = MUSTACHE_TYPE_NONE };
             if (strcmp(tag_key, "people") == 0) {
@@ -61,7 +62,7 @@ int main(void) {
                 tag.as_arr = people_tags;
             }
             return tag;
-        });
+        }, &err);
     }
     free(people_tags);
     custache_release(tpl);

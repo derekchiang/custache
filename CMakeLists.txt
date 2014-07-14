@@ -8,9 +8,10 @@ SET(CMAKE_MODULE_PATH
 SET(BLOCKS_CC_FLAGS "-fblocks")
 SET(BLOCKS_LINKER_FLAGS "-lBlocksRuntime")
 
+SET(CMAKE_BUILD_TYPE Debug)
+
 add_definitions(${BLOCKS_CC_FLAGS})
 SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${BLOCKS_LINKER_FLAGS}")
-add_definitions(-DE4C_THREADSAFE)
 
 find_package(PkgConfig)
 pkg_check_modules(APR apr-1)

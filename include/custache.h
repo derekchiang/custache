@@ -20,13 +20,12 @@ typedef struct custache *custache_t;
 extern custache_t custache_compile(const char *tpl, const char **err);
 
 // Render a template with a context
-extern char *custache_render(custache_t, context_handler_b);
+extern char *custache_render(custache_t, context_handler_b, const char **err);
 
 // Release all internal memory used by the template.  The template cannot be used after this call.
 extern void custache_release(custache_t);
 
 extern void _custache_run_tests(void);
-
 
 typedef enum {
     MUSTACHE_TYPE_LONG,
