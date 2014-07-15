@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <assert.h>
 #include <stdlib.h>
 
 #include "Block.h"
@@ -10,7 +9,7 @@
 #include "apr_strings.h"
 #include "apr_tables.h"
 
-#include "e4c_lite.h"
+#include "e4c.h"
 
 #include "cgems.h"
 
@@ -251,9 +250,9 @@ static custache_sm_t transit_from_expecting_section(custache_sm_t csm, custache_
     return csm;
 }
 
-static void set_err_with_exception(const char **err) {
+static void set_err_with_exception(const char **err, const e4c_exception *ex) {
     char *buf = malloc(1024);
-    sprintf(buf, "(%s:%d) %s", E4C_EXCEPTION.file, E4C_EXCEPTION.line, E4C_EXCEPTION.message);
+    sprintf(buf, "(%s:%d) %s", ex->file, ex->line, ex->message);
     *err = buf;
 }
 
@@ -282,45 +281,49 @@ custache_t custache_compile(const char *tpl, const char **err) {
     custache_add_one_block(cus, csm.current_template);
 
     size_t len = strlen(tpl);
-    try {
-        while (csm.state != DONE) {
-            switch (csm.state) {
-            case EXPECTING_TEXT:
-                csm = transit_from_expecting_text(csm, cus);
-                break;
-            case EXPECTING_VAR:
-                csm = transit_from_expecting_var(csm, cus);
-                break;
-            case EXPECTING_SECTION:
-                csm = transit_from_expecting_section(csm, cus);
-                break;
-            case ERROR:
-                *err = csm.err;
-                break;  // TODO: better error handling
-            case DONE:
-                break;
+    custache_t ret;
+    e4c_reusing_context(ret, NULL) {
+        try {
+            while (csm.state != DONE) {
+                switch (csm.state) {
+                case EXPECTING_TEXT:
+                    csm = transit_from_expecting_text(csm, cus);
+                    break;
+                case EXPECTING_VAR:
+                    csm = transit_from_expecting_var(csm, cus);
+                    break;
+                case EXPECTING_SECTION:
+                    csm = transit_from_expecting_section(csm, cus);
+                    break;
+                case ERROR:
+                    *err = csm.err;
+                    break;  // TODO: better error handling
+                case DONE:
+                    break;
+                }
             }
+
+            ret = cus;
+        } catch(RuntimeException) {
+            set_err_with_exception(err, e4c_get_exception());
+            apr_pool_destroy(cus->pool);
+            ret = NULL;
         }
-
-        return cus;
-    } catch(RuntimeException) {
-        set_err_with_exception(err);
-        apr_pool_destroy(cus->pool);
-        return NULL;
     }
-
-    SHOULD_NOT_REACH
+    return ret;
 }
 
 char *custache_render(custache_t cus, context_handler_b context, const char **err) {
-    try {
-        return APR_ARRAY_IDX(cus->blocks, cus->blocks->nelts - 1, custache_b)(context);
-    } catch(RuntimeException) {
-        set_err_with_exception(err);
-        return NULL;
+    char *ret;
+    e4c_reusing_context(ret, NULL) {
+        try {
+            ret = APR_ARRAY_IDX(cus->blocks, cus->blocks->nelts - 1, custache_b)(context);
+        } catch(RuntimeException) {
+            set_err_with_exception(err, e4c_get_exception());
+            ret = NULL;
+        }
     }
-
-    SHOULD_NOT_REACH
+    return ret;
 }
 
 void custache_release(custache_t cus) {
