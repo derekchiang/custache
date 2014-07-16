@@ -192,8 +192,9 @@ static const char *render_section(context_handler_b context,
     case MUSTACHE_TYPE_STRING:
         if (tag_is_truthy(tag)) {
             const char *err = NULL;
-            custache_render(section_tpl, context, &err);
+            ret = custache_render(section_tpl, context, &err);
             if (err) throw(RuntimeException, err);
+            return ret;
         } else return "";
     case MUSTACHE_TYPE_CONTEXT:;
         context_handler_b child_context = tag.as_context;
