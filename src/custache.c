@@ -126,6 +126,7 @@ static custache_sm_t transit_from_expecting_var(custache_sm_t csm, custache_t cu
             return (char *) NULL;  // TODO: better error reporting
         }
         char *ret = apr_psprintf(cus->pool, "%s%s", prev_tpl(context), str);
+        if (tag.cleanup) tag.cleanup(tag);
         return ret;
     });
     
@@ -220,8 +221,10 @@ static const char *render_section(context_handler_b context,
     case MUSTACHE_TYPE_ARR:
         ret = "";
         for (size_t i = 0; i < tag.arr_size; i++) {
+            mustache_tag_t subtag = tag.as_arr[i];
             ret = apr_pstrcat(section_tpl->pool, ret,
-                              render_section(context, section_tpl, section_text, tag.as_arr[i]), NULL);
+                              render_section(context, section_tpl, section_text, subtag), NULL);
+            if (subtag.cleanup) subtag.cleanup(subtag);
         } 
         return ret;
     default:  // NONE or CALLABLE   TODO: handle callable better
@@ -238,9 +241,11 @@ static custache_sm_t transit_from_expecting_section(custache_sm_t csm, custache_
     const char *err;
     custache_t section_tpl = custache_compile(section_text, &err);
     csm.current_template = Block_copy(^(context_handler_b context) {
+        mustache_tag_t tag = context(tag_key);
         char *ret = apr_pstrcat(cus->pool,
                     prev_tpl(context),
-                    render_section(context, section_tpl, section_text, context(tag_key)), NULL);
+                    render_section(context, section_tpl, section_text, tag), NULL);
+        if (tag.cleanup) tag.cleanup(tag);
         return ret;
     });
     
